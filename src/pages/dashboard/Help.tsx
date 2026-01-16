@@ -116,7 +116,7 @@ const Help = () => {
         </p>
         <div className="grid sm:grid-cols-2 gap-4">
           <a
-            href="mailto:krishna29cse076@sathyabama.ac.in"
+            href="mailto:krishna29cse076@satiengg.in"
             className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-all"
           >
             <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
@@ -124,7 +124,7 @@ const Help = () => {
             </div>
             <div>
               <p className="font-medium">Email Support</p>
-              <p className="text-sm text-muted-foreground">krishna29cse076@sathyabama.ac.in</p>
+              <p className="text-sm text-muted-foreground">krishna29cse076@satiengg.in</p>
             </div>
           </a>
           <a
