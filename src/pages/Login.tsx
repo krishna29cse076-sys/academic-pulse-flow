@@ -1,16 +1,46 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Zap, Mail, Lock, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { Zap, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, user } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement login
-    window.location.href = "/dashboard";
+    
+    if (!email || !password) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await signIn(email, password);
+    setIsLoading(false);
+
+    if (error) {
+      if (error.message.includes("Invalid login credentials")) {
+        toast.error("Invalid email or password");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+
+    toast.success("Welcome back!");
+    navigate("/dashboard");
   };
 
   return (
@@ -42,6 +72,7 @@ const Login = () => {
                   placeholder="you@student.edu"
                   className="w-full h-12 pl-11 pr-4 rounded-lg bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -57,6 +88,7 @@ const Login = () => {
                   placeholder="Enter your password"
                   className="w-full h-12 pl-11 pr-4 rounded-lg bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -71,9 +103,18 @@ const Login = () => {
               </a>
             </div>
 
-            <Button type="submit" variant="hero" size="lg" className="w-full group">
-              Log In
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+            <Button type="submit" variant="hero" size="lg" className="w-full group" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                <>
+                  Log In
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
             </Button>
           </form>
 

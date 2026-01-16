@@ -1,18 +1,58 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Zap, Mail, Lock, User, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { Zap, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Signup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { signUp, user } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement signup
-    window.location.href = "/dashboard";
+
+    if (!name || !email || !password || !confirmPassword) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await signUp(email, password, name);
+    setIsLoading(false);
+
+    if (error) {
+      if (error.message.includes("already registered")) {
+        toast.error("This email is already registered. Please log in instead.");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+
+    toast.success("Account created successfully! Welcome to InteractZ!");
+    navigate("/dashboard");
   };
 
   return (
@@ -59,6 +99,7 @@ const Signup = () => {
                   placeholder="John Doe"
                   className="w-full h-12 pl-11 pr-4 rounded-lg bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -74,6 +115,7 @@ const Signup = () => {
                   placeholder="you@student.edu"
                   className="w-full h-12 pl-11 pr-4 rounded-lg bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -89,6 +131,7 @@ const Signup = () => {
                   placeholder="Create a strong password"
                   className="w-full h-12 pl-11 pr-4 rounded-lg bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -104,6 +147,7 @@ const Signup = () => {
                   placeholder="Confirm your password"
                   className="w-full h-12 pl-11 pr-4 rounded-lg bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -118,9 +162,18 @@ const Signup = () => {
               </span>
             </label>
 
-            <Button type="submit" variant="hero" size="lg" className="w-full group mt-4">
-              Create Account
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+            <Button type="submit" variant="hero" size="lg" className="w-full group mt-4" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
             </Button>
           </form>
 

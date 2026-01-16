@@ -11,37 +11,129 @@ import {
   Star,
   Settings,
   Camera,
+  Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface Profile {
+  id: string;
+  user_id: string;
+  username: string | null;
+  full_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  academic_info: unknown;
+  is_private: boolean;
+  created_at: string;
+}
 
 const Profile = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("posts");
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    bio: "",
+    username: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data) {
+        setProfile(data);
+        setEditForm({
+          full_name: data.full_name || "",
+          bio: data.bio || "",
+          username: data.username || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: editForm.full_name,
+          bio: editForm.bio,
+          username: editForm.username || null,
+        })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast.success("Profile updated successfully!");
+      setIsEditing(false);
+      fetchProfile();
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      toast.error(err.message || "Failed to update profile");
+    }
+  };
 
   const stats = [
-    { label: "Notes Shared", value: 24, icon: BookOpen },
-    { label: "Assignments", value: 18, icon: FileText },
-    { label: "Likes Received", value: 342, icon: Heart },
-    { label: "Rating", value: "4.8", icon: Star },
+    { label: "Notes Shared", value: 0, icon: BookOpen },
+    { label: "Assignments", value: 0, icon: FileText },
+    { label: "Likes Received", value: 0, icon: Heart },
+    { label: "Rating", value: "N/A", icon: Star },
   ];
 
   const tabs = ["posts", "notes", "assignments", "saved"];
 
-  const posts = [
-    {
-      id: 1,
-      content: "Just completed the Data Structures project! 🎉 It was challenging but worth it.",
-      likes: 45,
-      comments: 12,
-      time: "2 days ago",
-    },
-    {
-      id: 2,
-      content: "Uploaded new notes for Linear Algebra Chapter 5. Check them out!",
-      likes: 67,
-      comments: 23,
-      time: "1 week ago",
-    },
-  ];
+  const getUserInitials = () => {
+    if (profile?.full_name) {
+      return profile.full_name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return user?.email?.slice(0, 2).toUpperCase() || "U";
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -51,7 +143,7 @@ const Profile = () => {
           {/* Avatar */}
           <div className="relative group">
             <div className="w-28 h-28 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow">
-              <span className="text-primary-foreground font-bold text-3xl">JD</span>
+              <span className="text-primary-foreground font-bold text-3xl">{getUserInitials()}</span>
             </div>
             <button className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <Camera className="w-6 h-6 text-white" />
@@ -62,37 +154,83 @@ const Profile = () => {
           <div className="flex-1">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div>
-                <h1 className="text-2xl font-display font-bold">John Doe</h1>
-                <p className="text-muted-foreground">Computer Science Student</p>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editForm.full_name}
+                    onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                    className="text-2xl font-display font-bold bg-muted/50 border border-border rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    placeholder="Your name"
+                  />
+                ) : (
+                  <h1 className="text-2xl font-display font-bold">
+                    {profile?.full_name || user?.email?.split("@")[0] || "User"}
+                  </h1>
+                )}
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editForm.username}
+                    onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                    className="text-muted-foreground bg-muted/50 border border-border rounded-lg px-3 py-1 mt-1 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    placeholder="@username"
+                  />
+                ) : (
+                  <p className="text-muted-foreground">
+                    {profile?.username ? `@${profile.username}` : "Student"}
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </Button>
-                <Button variant="hero" size="sm">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Profile
-                </Button>
+                {isEditing ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
+                      Cancel
+                    </Button>
+                    <Button variant="hero" size="sm" onClick={handleSaveProfile}>
+                      Save Changes
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => window.location.href = "/dashboard/settings"}>
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </Button>
+                    <Button variant="hero" size="sm" onClick={() => setIsEditing(true)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
-            <p className="text-foreground/80 mb-4">
-              Passionate about algorithms and data structures. Always looking to learn and help others! 🚀
-            </p>
+            {isEditing ? (
+              <textarea
+                value={editForm.bio}
+                onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                className="w-full text-foreground/80 mb-4 bg-muted/50 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[80px]"
+                placeholder="Tell us about yourself..."
+              />
+            ) : (
+              <p className="text-foreground/80 mb-4">
+                {profile?.bio || "No bio yet. Click 'Edit Profile' to add one!"}
+              </p>
+            )}
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Mail className="w-4 h-4" />
-                john@student.edu
+                {user?.email}
               </span>
               <span className="flex items-center gap-1">
                 <MapPin className="w-4 h-4" />
-                Computer Science Dept.
+                Student
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="w-4 h-4" />
-                Joined Jan 2025
+                Joined {profile?.created_at ? formatDate(profile.created_at) : "Recently"}
               </span>
             </div>
           </div>
@@ -134,34 +272,15 @@ const Profile = () => {
 
       {/* Content */}
       <div className="space-y-4">
-        {activeTab === "posts" &&
-          posts.map((post) => (
-            <div key={post.id} className="glass-card p-5 animate-slide-up">
-              <p className="text-foreground/90 mb-4">{post.content}</p>
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-1">
-                    <Heart className="w-4 h-4" />
-                    {post.likes}
-                  </span>
-                  <span>{post.comments} comments</span>
-                </div>
-                <span>{post.time}</span>
-              </div>
-            </div>
-          ))}
-
-        {activeTab !== "posts" && (
-          <div className="glass-card p-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-              <BookOpen className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="font-display font-semibold text-lg mb-2">No {activeTab} yet</h3>
-            <p className="text-muted-foreground">
-              Your {activeTab} will appear here when you create them.
-            </p>
+        <div className="glass-card p-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
+            <BookOpen className="w-8 h-8 text-muted-foreground" />
           </div>
-        )}
+          <h3 className="font-display font-semibold text-lg mb-2">No {activeTab} yet</h3>
+          <p className="text-muted-foreground">
+            Your {activeTab} will appear here when you create them.
+          </p>
+        </div>
       </div>
     </div>
   );
