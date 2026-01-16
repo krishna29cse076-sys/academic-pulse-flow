@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   FileText,
@@ -13,9 +13,13 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const DashboardSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   const mainLinks = [
     { name: "Feed", href: "/dashboard", icon: Home },
@@ -37,6 +41,29 @@ const DashboardSidebar = () => {
       return location.pathname === "/dashboard";
     }
     return location.pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    toast.success("Logged out successfully");
+    navigate("/");
+  };
+
+  const getUserInitials = () => {
+    const fullName = user?.user_metadata?.full_name;
+    if (fullName) {
+      return fullName
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return user?.email?.slice(0, 2).toUpperCase() || "U";
+  };
+
+  const getDisplayName = () => {
+    return user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
   };
 
   return (
@@ -106,15 +133,18 @@ const DashboardSidebar = () => {
       <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 p-2">
           <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-semibold">JD</span>
+            <span className="text-primary-foreground font-semibold">{getUserInitials()}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">John Doe</p>
-            <p className="text-xs text-muted-foreground truncate">john@student.edu</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">{getDisplayName()}</p>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
-          <Link to="/" className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors text-muted-foreground hover:text-destructive">
+          <button
+            onClick={handleLogout}
+            className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors text-muted-foreground hover:text-destructive"
+          >
             <LogOut className="w-4 h-4" />
-          </Link>
+          </button>
         </div>
       </div>
     </aside>
