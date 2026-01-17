@@ -17,6 +17,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { validateProfile, getCharCountDisplay, VALIDATION_LIMITS } from "@/lib/validation";
 
 interface Profile {
   id: string;
@@ -41,6 +42,7 @@ const Profile = () => {
     bio: "",
     username: "",
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (user) {
@@ -75,15 +77,34 @@ const Profile = () => {
     }
   };
 
+  const handleFormChange = (field: string, value: string) => {
+    const newForm = { ...editForm, [field]: value };
+    setEditForm(newForm);
+    
+    const validation = validateProfile(newForm);
+    if (!validation.valid && validation.errors) {
+      setFormErrors(validation.errors);
+    } else {
+      setFormErrors({});
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
+
+    const validation = validateProfile(editForm);
+    if (!validation.valid) {
+      setFormErrors(validation.errors || {});
+      toast.error("Please fix the validation errors");
+      return;
+    }
 
     try {
       const { error } = await supabase
         .from("profiles")
         .update({
-          full_name: editForm.full_name,
-          bio: editForm.bio,
+          full_name: editForm.full_name || null,
+          bio: editForm.bio || null,
           username: editForm.username || null,
         })
         .eq("user_id", user.id);
@@ -92,6 +113,7 @@ const Profile = () => {
 
       toast.success("Profile updated successfully!");
       setIsEditing(false);
+      setFormErrors({});
       fetchProfile();
     } catch (error: unknown) {
       const err = error as { message?: string };
@@ -155,26 +177,44 @@ const Profile = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div>
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.full_name}
-                    onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                    className="text-2xl font-display font-bold bg-muted/50 border border-border rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    placeholder="Your name"
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      value={editForm.full_name}
+                      onChange={(e) => handleFormChange("full_name", e.target.value)}
+                      className={`text-2xl font-display font-bold bg-muted/50 border rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary/20 ${formErrors.full_name ? 'border-destructive' : 'border-border'}`}
+                      placeholder="Your name"
+                      maxLength={VALIDATION_LIMITS.profiles.fullName.max + 10}
+                    />
+                    {formErrors.full_name && (
+                      <p className="text-xs text-destructive mt-1">{formErrors.full_name}</p>
+                    )}
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {getCharCountDisplay(editForm.full_name.length, VALIDATION_LIMITS.profiles.fullName.max).text}
+                    </span>
+                  </div>
                 ) : (
                   <h1 className="text-2xl font-display font-bold">
                     {profile?.full_name || user?.email?.split("@")[0] || "User"}
                   </h1>
                 )}
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.username}
-                    onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                    className="text-muted-foreground bg-muted/50 border border-border rounded-lg px-3 py-1 mt-1 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    placeholder="@username"
-                  />
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      value={editForm.username}
+                      onChange={(e) => handleFormChange("username", e.target.value)}
+                      className={`text-muted-foreground bg-muted/50 border rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary/20 ${formErrors.username ? 'border-destructive' : 'border-border'}`}
+                      placeholder="username (letters, numbers, underscores)"
+                      maxLength={VALIDATION_LIMITS.profiles.username.max + 5}
+                    />
+                    {formErrors.username && (
+                      <p className="text-xs text-destructive mt-1">{formErrors.username}</p>
+                    )}
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {VALIDATION_LIMITS.profiles.username.min}-{VALIDATION_LIMITS.profiles.username.max} chars
+                    </span>
+                  </div>
                 ) : (
                   <p className="text-muted-foreground">
                     {profile?.username ? `@${profile.username}` : "Student"}
@@ -207,12 +247,29 @@ const Profile = () => {
             </div>
 
             {isEditing ? (
-              <textarea
-                value={editForm.bio}
-                onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                className="w-full text-foreground/80 mb-4 bg-muted/50 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[80px]"
-                placeholder="Tell us about yourself..."
-              />
+              <div className="mb-4">
+                <textarea
+                  value={editForm.bio}
+                  onChange={(e) => handleFormChange("bio", e.target.value)}
+                  className={`w-full text-foreground/80 bg-muted/50 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[80px] ${formErrors.bio ? 'border-destructive' : 'border-border'}`}
+                  placeholder="Tell us about yourself..."
+                  maxLength={VALIDATION_LIMITS.profiles.bio.max + 50}
+                />
+                <div className="flex justify-between items-center mt-1">
+                  {formErrors.bio && (
+                    <p className="text-xs text-destructive">{formErrors.bio}</p>
+                  )}
+                  <span className={`text-xs ml-auto ${
+                    getCharCountDisplay(editForm.bio.length, VALIDATION_LIMITS.profiles.bio.max).isOverLimit
+                      ? 'text-destructive'
+                      : getCharCountDisplay(editForm.bio.length, VALIDATION_LIMITS.profiles.bio.max).isNearLimit
+                        ? 'text-warning'
+                        : 'text-muted-foreground'
+                  }`}>
+                    {getCharCountDisplay(editForm.bio.length, VALIDATION_LIMITS.profiles.bio.max).text}
+                  </span>
+                </div>
+              </div>
             ) : (
               <p className="text-foreground/80 mb-4">
                 {profile?.bio || "No bio yet. Click 'Edit Profile' to add one!"}

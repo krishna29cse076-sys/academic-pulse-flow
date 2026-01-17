@@ -16,6 +16,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { validatePost, getCharCountDisplay, VALIDATION_LIMITS } from "@/lib/validation";
 
 interface Post {
   id: string;
@@ -36,6 +37,7 @@ interface Profile {
 const Feed = () => {
   const { user } = useAuth();
   const [newPost, setNewPost] = useState("");
+  const [postError, setPostError] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -97,8 +99,24 @@ const Feed = () => {
     }
   };
 
+  const handlePostChange = (value: string) => {
+    setNewPost(value);
+    if (value.trim()) {
+      const validation = validatePost(value);
+      setPostError(validation.error || null);
+    } else {
+      setPostError(null);
+    }
+  };
+
   const handleCreatePost = async () => {
-    if (!newPost.trim() || !user) return;
+    if (!user) return;
+
+    const validation = validatePost(newPost);
+    if (!validation.valid) {
+      setPostError(validation.error || "Invalid post content");
+      return;
+    }
 
     setPosting(true);
     try {
@@ -111,6 +129,7 @@ const Feed = () => {
 
       toast.success("Post created!");
       setNewPost("");
+      setPostError(null);
       fetchPosts();
     } catch (error: unknown) {
       const err = error as { message?: string };
@@ -224,27 +243,44 @@ const Feed = () => {
               <div className="flex-1">
                 <textarea
                   value={newPost}
-                  onChange={(e) => setNewPost(e.target.value)}
+                  onChange={(e) => handlePostChange(e.target.value)}
                   placeholder="Share something with your community..."
-                  className="w-full resize-none bg-transparent border-none focus:outline-none text-foreground placeholder:text-muted-foreground min-h-[80px]"
+                  className={`w-full resize-none bg-transparent border-none focus:outline-none text-foreground placeholder:text-muted-foreground min-h-[80px] ${postError ? 'text-destructive' : ''}`}
                   disabled={posting}
+                  maxLength={VALIDATION_LIMITS.posts.content.max + 100}
                 />
+                {postError && (
+                  <p className="text-sm text-destructive mt-1">{postError}</p>
+                )}
                 <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground">
-                      <Image className="w-4 h-4 mr-2" />
-                      Photo
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground">
-                      <FileText className="w-4 h-4 mr-2" />
-                      Document
-                    </Button>
+                  <div className="flex items-center gap-4">
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" className="text-muted-foreground">
+                        <Image className="w-4 h-4 mr-2" />
+                        Photo
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-muted-foreground">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Document
+                      </Button>
+                    </div>
+                    {newPost.length > 0 && (
+                      <span className={`text-xs ${
+                        getCharCountDisplay(newPost.length, VALIDATION_LIMITS.posts.content.max).isOverLimit
+                          ? 'text-destructive'
+                          : getCharCountDisplay(newPost.length, VALIDATION_LIMITS.posts.content.max).isNearLimit
+                            ? 'text-warning'
+                            : 'text-muted-foreground'
+                      }`}>
+                        {getCharCountDisplay(newPost.length, VALIDATION_LIMITS.posts.content.max).text}
+                      </span>
+                    )}
                   </div>
                   <Button
                     variant="hero"
                     size="sm"
                     onClick={handleCreatePost}
-                    disabled={!newPost.trim() || posting}
+                    disabled={!newPost.trim() || posting || !!postError}
                   >
                     {posting ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
