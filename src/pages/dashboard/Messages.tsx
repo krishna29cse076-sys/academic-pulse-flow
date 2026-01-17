@@ -10,10 +10,22 @@ import {
   Circle,
 } from "lucide-react";
 import { useState } from "react";
+import { validateMessage, getCharCountDisplay, VALIDATION_LIMITS } from "@/lib/validation";
 
 const Messages = () => {
   const [selectedChat, setSelectedChat] = useState(0);
   const [message, setMessage] = useState("");
+  const [messageError, setMessageError] = useState<string | null>(null);
+
+  const handleMessageChange = (value: string) => {
+    setMessage(value);
+    if (value.trim()) {
+      const validation = validateMessage(value);
+      setMessageError(validation.error || null);
+    } else {
+      setMessageError(null);
+    }
+  };
 
   const conversations = [
     {
@@ -217,25 +229,44 @@ const Messages = () => {
 
           {/* Message Input */}
           <div className="p-4 border-t border-border/50">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="flex-shrink-0">
-                <Paperclip className="w-5 h-5" />
-              </Button>
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="w-full h-11 px-4 rounded-full bg-muted/50 border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-                />
-                <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2">
-                  <Smile className="w-5 h-5" />
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="icon" className="flex-shrink-0">
+                  <Paperclip className="w-5 h-5" />
+                </Button>
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={message}
+                    onChange={(e) => handleMessageChange(e.target.value)}
+                    placeholder="Type a message..."
+                    className={`w-full h-11 px-4 rounded-full bg-muted/50 border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${messageError ? 'border-destructive' : 'border-border/50'}`}
+                    maxLength={VALIDATION_LIMITS.messages.content.max + 50}
+                  />
+                  <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2">
+                    <Smile className="w-5 h-5" />
+                  </Button>
+                </div>
+                <Button variant="hero" size="icon" className="rounded-full flex-shrink-0" disabled={!message.trim() || !!messageError}>
+                  <Send className="w-5 h-5" />
                 </Button>
               </div>
-              <Button variant="hero" size="icon" className="rounded-full flex-shrink-0">
-                <Send className="w-5 h-5" />
-              </Button>
+              <div className="flex justify-between items-center px-12">
+                {messageError && (
+                  <span className="text-xs text-destructive">{messageError}</span>
+                )}
+                {message.length > 0 && (
+                  <span className={`text-xs ml-auto ${
+                    getCharCountDisplay(message.length, VALIDATION_LIMITS.messages.content.max).isOverLimit
+                      ? 'text-destructive'
+                      : getCharCountDisplay(message.length, VALIDATION_LIMITS.messages.content.max).isNearLimit
+                        ? 'text-warning'
+                        : 'text-muted-foreground'
+                  }`}>
+                    {getCharCountDisplay(message.length, VALIDATION_LIMITS.messages.content.max).text}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
