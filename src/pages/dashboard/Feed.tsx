@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { validatePost, getCharCountDisplay, VALIDATION_LIMITS } from "@/lib/validation";
+import PostCard from "@/components/feed/PostCard";
 
 interface Post {
   id: string;
@@ -315,55 +316,18 @@ const Feed = () => {
             posts.map((post) => {
               const isLiked = likedPosts.has(post.id);
               const profile = profiles.get(post.user_id);
-              const authorName = profile?.full_name || "Anonymous";
-              const authorInitials = getUserInitials(profile?.full_name || null);
 
               return (
-                <div key={post.id} className="glass-card p-5 animate-slide-up">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center flex-shrink-0">
-                      <span className="text-primary-foreground font-semibold text-sm">
-                        {authorInitials}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <div>
-                          <span className="font-semibold">{authorName}</span>
-                          <span className="text-muted-foreground text-sm ml-2">
-                            {getTimeAgo(post.created_at)}
-                          </span>
-                        </div>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <p className="text-foreground/90 mb-4 whitespace-pre-wrap">{post.content}</p>
-                      <div className="flex items-center gap-4">
-                        <button
-                          onClick={() => handleLike(post.id)}
-                          className={`flex items-center gap-1.5 text-sm transition-colors ${
-                            isLiked ? "text-accent" : "text-muted-foreground hover:text-accent"
-                          }`}
-                        >
-                          <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
-                          {post.likes_count}
-                        </button>
-                        <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
-                          <MessageCircle className="w-4 h-4" />
-                          {post.comments_count}
-                        </button>
-                        <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
-                          <Share2 className="w-4 h-4" />
-                          Share
-                        </button>
-                        <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors ml-auto">
-                          <Bookmark className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  profile={profile}
+                  isLiked={isLiked}
+                  onLike={handleLike}
+                  onPostUpdate={fetchPosts}
+                  getUserInitials={getUserInitials}
+                  getTimeAgo={getTimeAgo}
+                />
               );
             })
           )}
