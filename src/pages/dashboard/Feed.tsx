@@ -66,15 +66,16 @@ const Feed = () => {
       // Fetch profiles for all post authors
       if (postsData && postsData.length > 0) {
         const userIds = [...new Set(postsData.map(p => p.user_id))];
+        // Use profiles_public view to avoid exposing sensitive academic_info
         const { data: profilesData, error: profilesError } = await supabase
-          .from("profiles")
+          .from("profiles_public" as any)
           .select("user_id, full_name, avatar_url")
           .in("user_id", userIds);
 
         if (profilesError) throw profilesError;
 
         const profileMap = new Map<string, Profile>();
-        profilesData?.forEach(p => profileMap.set(p.user_id, p));
+        (profilesData as any[])?.forEach(p => profileMap.set(p.user_id, p as Profile));
         setProfiles(profileMap);
       }
     } catch (error) {
