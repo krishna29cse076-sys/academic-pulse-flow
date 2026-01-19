@@ -8,17 +8,20 @@ type Message = Tables<"messages">;
 type Conversation = Tables<"conversations">;
 type Profile = Tables<"profiles">;
 
+// Public profile type that excludes sensitive academic_info
+type PublicProfile = Omit<Profile, 'academic_info'>;
+
 interface ConversationWithDetails extends Conversation {
   participants: {
     user_id: string;
-    profile: Profile | null;
+    profile: PublicProfile | null;
   }[];
   lastMessage: Message | null;
   unreadCount: number;
 }
 
 interface MessageWithSender extends Message {
-  sender: Profile | null;
+  sender: PublicProfile | null;
 }
 
 export function useMessages() {
@@ -73,12 +76,13 @@ export function useMessages() {
         // Get profiles for participants
         const participantsWithProfiles = await Promise.all(
           (participants || []).map(async (p) => {
+            // Use profiles_public view to avoid exposing sensitive academic_info
             const { data: profile } = await supabase
-              .from("profiles")
+              .from("profiles_public" as any)
               .select("*")
               .eq("user_id", p.user_id)
               .single();
-            return { user_id: p.user_id, profile };
+            return { user_id: p.user_id, profile: (profile as unknown) as PublicProfile | null };
           })
         );
 
@@ -143,12 +147,13 @@ export function useMessages() {
       // Fetch sender profiles
       const messagesWithSenders = await Promise.all(
         (messagesData || []).map(async (msg) => {
+          // Use profiles_public view to avoid exposing sensitive academic_info
           const { data: profile } = await supabase
-            .from("profiles")
+            .from("profiles_public" as any)
             .select("*")
             .eq("user_id", msg.sender_id)
             .single();
-          return { ...msg, sender: profile };
+          return { ...msg, sender: (profile as unknown) as PublicProfile | null };
         })
       );
 
@@ -284,13 +289,14 @@ export function useMessages() {
 
           // If message is for current conversation, add it
           if (newMessage.conversation_id === selectedConversationId) {
+            // Use profiles_public view to avoid exposing sensitive academic_info
             const { data: profile } = await supabase
-              .from("profiles")
+              .from("profiles_public" as any)
               .select("*")
               .eq("user_id", newMessage.sender_id)
               .single();
 
-            setMessages((prev) => [...prev, { ...newMessage, sender: profile }]);
+            setMessages((prev) => [...prev, { ...newMessage, sender: (profile as unknown) as PublicProfile | null }]);
 
             // Mark as read if not from current user
             if (newMessage.sender_id !== user.id) {

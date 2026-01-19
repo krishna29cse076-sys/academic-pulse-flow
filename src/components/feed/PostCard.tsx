@@ -83,15 +83,16 @@ const PostCard = ({
       // Fetch profiles for comment authors
       if (commentsData && commentsData.length > 0) {
         const userIds = [...new Set(commentsData.map((c) => c.user_id))];
+        // Use profiles_public view to avoid exposing sensitive academic_info
         const { data: profilesData, error: profilesError } = await supabase
-          .from("profiles")
+          .from("profiles_public" as any)
           .select("user_id, full_name, avatar_url")
           .in("user_id", userIds);
 
         if (profilesError) throw profilesError;
 
         const profileMap = new Map<string, Profile>();
-        profilesData?.forEach((p) => profileMap.set(p.user_id, p));
+        (profilesData as any[])?.forEach((p) => profileMap.set(p.user_id, p as Profile));
         setCommentProfiles(profileMap);
       }
     } catch (error) {
