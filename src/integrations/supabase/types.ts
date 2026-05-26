@@ -433,12 +433,7 @@ export type Database = {
       }
     }
     Functions: {
-      is_conversation_participant: {
-        Args: { conv_id: string }
-        Returns: boolean
-      }
-      is_group_admin: { Args: { grp_id: string }; Returns: boolean }
-      is_group_member: { Args: { grp_id: string }; Returns: boolean }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
